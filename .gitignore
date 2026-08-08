@@ -1,0 +1,21 @@
+# backend (Maven/Java)
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# mobile & web (Node)
+mobile/node_modules/
+web/node_modules/
+web/.next/
+mobile/.expo/
+**/*.log
+npm-debug.log*
+
+# env files
+.env
+.env.local
+!.env.local.example
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
