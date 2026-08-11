@@ -39,15 +39,3 @@ export const darkColors: typeof lightColors = {
 };
 
 export type ThemeColors = typeof lightColors;
-
-export type HabitColorKey = 'accent' | 'teal' | 'coral' | 'amber';
-
-export function habitColorVars(colors: ThemeColors, key: HabitColorKey) {
-  const map: Record<HabitColorKey, { tint: string; solid: string }> = {
-    accent: { tint: colors.accentTint, solid: colors.accent },
-    teal: { tint: colors.tealTint, solid: colors.teal },
-    coral: { tint: colors.coralTint, solid: colors.coral },
-    amber: { tint: colors.amberTint, solid: colors.amber },
-  };
-  return map[key];
-}

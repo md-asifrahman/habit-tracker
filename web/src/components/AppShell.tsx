@@ -3,13 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { TodayIcon, HabitsIcon, MindMapIcon, StatsIcon, SettingsIcon } from './icons';
+import { TodayIcon, ChallengesIcon, SettingsIcon } from './icons';
 
 const navItems = [
   { href: '/today', label: 'Today', icon: TodayIcon },
-  { href: '/habits', label: 'Habits', icon: HabitsIcon },
-  { href: '/mindmaps', label: 'Mind Maps', icon: MindMapIcon },
-  { href: '/stats', label: 'Stats', icon: StatsIcon },
+  { href: '/challenges', label: 'Challenges', icon: ChallengesIcon },
   { href: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
 

@@ -1,7 +1,9 @@
 package com.habittracker.challenge;
 
 import com.habittracker.common.BaseEntity;
-import com.habittracker.habit.Habit;
+import com.habittracker.daylog.DayLog;
+import com.habittracker.user.User;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -9,8 +11,13 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -21,8 +28,11 @@ import lombok.Setter;
 public class Challenge extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "habit_id", nullable = false)
-    private Habit habit;
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @Column(nullable = false)
+    private String title;
 
     @Column(nullable = false)
     private int durationDays;
@@ -36,4 +46,36 @@ public class Challenge extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ChallengeStatus status = ChallengeStatus.ACTIVE;
+
+    /** Time of day the daily reminder fires. */
+    @Column(nullable = false)
+    private LocalTime reminderTime = LocalTime.of(22, 0);
+
+    /** Either "default" (the phone's own notification sound) or "silent". */
+    @Column(nullable = false)
+    private String reminderSound = "default";
+
+    /** Whether to keep nagging until the day is logged. */
+    @Column(nullable = false)
+    private boolean repeatEnabled = true;
+
+    /** Minutes between repeat reminders. */
+    @Column(nullable = false)
+    private int repeatEveryMin = 30;
+
+    @OneToMany(mappedBy = "challenge", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sortOrder ASC")
+    private List<ChallengeTask> tasks = new ArrayList<>();
+
+    /**
+     * Owned so that deleting a challenge takes its day logs with it — the logs hold the FK, so
+     * without the cascade the database would reject the delete.
+     */
+    @OneToMany(mappedBy = "challenge", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DayLog> dayLogs = new ArrayList<>();
+
+    public void addTask(ChallengeTask task) {
+        task.setChallenge(this);
+        tasks.add(task);
+    }
 }

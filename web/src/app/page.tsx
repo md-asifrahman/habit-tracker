@@ -6,7 +6,8 @@ export default function Home() {
       <span className="h-8 w-8 rounded-xl bg-accent" />
       <h1 className="font-display text-3xl">Habit Tracker</h1>
       <p className="max-w-md text-text-muted">
-        Build streaks, run 21/100/custom-day challenges, map out your goals, and get reminded.
+        Pick how many days. List what you&apos;ll do daily. Tick it off each night and watch the
+        percentage build.
       </p>
       <Link href="/login" className="rounded-full bg-accent px-5 py-3 text-sm font-bold text-accent-ink">
         Get started

@@ -3,25 +3,22 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme, fonts } from '../theme/useTheme';
 import TodayScreen from '../screens/TodayScreen';
-import HabitsScreen from '../screens/HabitsScreen';
-import MindMapScreen from '../screens/MindMapScreen';
-import StatsScreen from '../screens/StatsScreen';
+import ChallengesScreen from '../screens/ChallengesScreen';
 import SettingsScreen from '../screens/SettingsScreen';
-import HabitDetailScreen from '../screens/HabitDetailScreen';
-import AddHabitScreen from '../screens/AddHabitScreen';
-import { TodayIcon, HabitsIcon, MindMapIcon, StatsIcon, SettingsIcon } from '../components/icons';
+import ChallengeDetailScreen from '../screens/ChallengeDetailScreen';
+import AddChallengeScreen from '../screens/AddChallengeScreen';
+import { TodayIcon, ChallengesIcon, SettingsIcon } from '../components/icons';
 
 export type RootStackParamList = {
   Tabs: undefined;
-  HabitDetail: { habitId: string };
-  AddHabit: undefined;
+  ChallengeDetail: { challengeId: string };
+  /** Doubles as the edit flow when a challengeId is passed. */
+  AddChallenge: { challengeId?: string };
 };
 
 export type TabParamList = {
   Today: undefined;
-  Habits: undefined;
-  MindMaps: undefined;
-  Stats: undefined;
+  Challenges: undefined;
   Settings: undefined;
 };
 
@@ -46,19 +43,9 @@ function Tabs() {
         options={{ tabBarIcon: ({ color, size }) => <TodayIcon color={color} size={size} /> }}
       />
       <Tab.Screen
-        name="Habits"
-        component={HabitsScreen}
-        options={{ tabBarIcon: ({ color, size }) => <HabitsIcon color={color} size={size} /> }}
-      />
-      <Tab.Screen
-        name="MindMaps"
-        component={MindMapScreen}
-        options={{ title: 'Map', tabBarIcon: ({ color, size }) => <MindMapIcon color={color} size={size} /> }}
-      />
-      <Tab.Screen
-        name="Stats"
-        component={StatsScreen}
-        options={{ tabBarIcon: ({ color, size }) => <StatsIcon color={color} size={size} /> }}
+        name="Challenges"
+        component={ChallengesScreen}
+        options={{ tabBarIcon: ({ color, size }) => <ChallengesIcon color={color} size={size} /> }}
       />
       <Tab.Screen
         name="Settings"
@@ -87,8 +74,8 @@ export default function RootNavigator() {
     <NavigationContainer theme={navTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Tabs" component={Tabs} />
-        <Stack.Screen name="HabitDetail" component={HabitDetailScreen} options={{ presentation: 'card' }} />
-        <Stack.Screen name="AddHabit" component={AddHabitScreen} options={{ presentation: 'modal' }} />
+        <Stack.Screen name="ChallengeDetail" component={ChallengeDetailScreen} options={{ presentation: 'card' }} />
+        <Stack.Screen name="AddChallenge" component={AddChallengeScreen} options={{ presentation: 'modal' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
