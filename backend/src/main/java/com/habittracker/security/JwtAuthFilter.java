@@ -34,9 +34,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(7);
 
-        if (jwtService.isTokenValid(token) && SecurityContextHolder.getContext().getAuthentication() == null) {
+        // Refresh tokens are deliberately not accepted here — they are long-lived and may only be
+        // exchanged at /api/auth/refresh.
+        if (jwtService.isTokenValid(token, JwtService.TYPE_ACCESS)
+                && SecurityContextHolder.getContext().getAuthentication() == null) {
             String email = jwtService.extractEmail(token);
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+            if (userDetails instanceof UserPrincipal principal
+                    && principal.getUser().getTokenVersion() != jwtService.extractTokenVersion(token)) {
+                // Revoked by a "sign out everywhere" since this token was issued.
+                filterChain.doFilter(request, response);
+                return;
+            }
 
             UsernamePasswordAuthenticationToken authToken =
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());

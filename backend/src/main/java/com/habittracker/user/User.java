@@ -24,4 +24,11 @@ public class User extends BaseEntity {
 
     @Column(nullable = false)
     private String timezone = "UTC";
+
+    /**
+     * Bumped to revoke every token issued so far — the remedy for a lost or stolen phone.
+     * Tokens carry the version they were minted with and are rejected once it falls behind.
+     */
+    @Column(nullable = false)
+    private int tokenVersion = 0;
 }

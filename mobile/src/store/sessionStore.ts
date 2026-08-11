@@ -1,8 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { setAccessToken } from '../api/client';
+import { setAccessToken, setAuthHandlers } from '../api/client';
 import { authApi } from '../api/auth';
+import { secureStorage } from './secureStorage';
 
 interface Session {
   email: string;
@@ -39,7 +39,9 @@ export const useSessionStore = create<SessionState>()(
     }),
     {
       name: 'habittracker.session',
-      storage: createJSONStorage(() => AsyncStorage),
+      // Tokens are as good as the password — they belong in the Keychain/Keystore, not in a
+      // plain file that a rooted device or a backup can hand over.
+      storage: createJSONStorage(() => secureStorage),
       onRehydrateStorage: () => (state) => {
         if (state?.session) {
           setAccessToken(state.session.accessToken);
@@ -48,3 +50,27 @@ export const useSessionStore = create<SessionState>()(
     },
   ),
 );
+
+/**
+ * Lets the API client refresh an expired access token on its own. Access tokens are good for
+ * 15 minutes, so without this every session would start failing partway through and the sync
+ * would report itself as permanently offline.
+ */
+setAuthHandlers({
+  getRefreshToken: () => useSessionStore.getState().session?.refreshToken ?? null,
+  onRefreshed: (auth) =>
+    useSessionStore.setState((state) =>
+      state.session
+        ? {
+            session: {
+              ...state.session,
+              accessToken: auth.accessToken,
+              refreshToken: auth.refreshToken,
+            },
+          }
+        : state,
+    ),
+  // Only reached when the refresh token is rejected outright — a network failure leaves the
+  // session alone, since being offline is normal here.
+  onRefreshFailed: () => useSessionStore.getState().logout(),
+});
