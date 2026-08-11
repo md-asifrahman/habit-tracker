@@ -1,0 +1,21 @@
+{
+  "cli": { "version": ">= 5.0.0", "appVersionSource": "local" },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease -PreactNativeArchitectures=arm64-v8a"
+      }
+    },
+    "preview-synced": {
+      "extends": "preview",
+      "env": { "EXPO_PUBLIC_API_BASE_URL": "https://api.your-domain.com/api" }
+    },
+    "production": {
+      "android": { "buildType": "app-bundle" },
+      "env": { "EXPO_PUBLIC_API_BASE_URL": "https://api.your-domain.com/api" }
+    }
+  },
+  "submit": { "production": {} }
+}
