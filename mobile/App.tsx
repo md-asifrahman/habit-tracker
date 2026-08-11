@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, Fredoka_600SemiBold } from '@expo-google-fonts/fredoka';
 import { Manrope_400Regular, Manrope_700Bold } from '@expo-google-fonts/manrope';
 import RootNavigator from './src/navigation/RootNavigator';
+import { useBackgroundSync } from './src/sync/useBackgroundSync';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -17,6 +18,8 @@ export default function App() {
     Manrope_400Regular,
     Manrope_700Bold,
   });
+
+  useBackgroundSync();
 
   useEffect(() => {
     if (fontsLoaded) {

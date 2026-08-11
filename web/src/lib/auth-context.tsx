@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { setAccessToken } from './api-client';
+import { setAccessToken, setAuthHandlers } from './api-client';
 import { authApi } from './auth-api';
 
 interface Session {
@@ -27,6 +27,11 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const STORAGE_KEY = 'habittracker.session';
 
+function readStored(): StoredAuth | null {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  return raw ? (JSON.parse(raw) as StoredAuth) : null;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<{ session: Session | null; isReady: boolean }>({
     session: null,
@@ -37,6 +42,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // part of the server-rendered HTML — this must run once after mount, before
   // any redirect decision is made. (The alternative, useSyncExternalStore, races
   // with Next's hydration correction here and fires a spurious redirect.)
+  // Lets the API client renew an expired access token by itself. Tokens are good for 15
+  // minutes, so without this a tab left open would start failing every request.
+  useEffect(() => {
+    setAuthHandlers({
+      getRefreshToken: () => readStored()?.refreshToken ?? null,
+      onRefreshed: (auth) => {
+        const stored = readStored();
+        if (stored) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...stored, ...auth }));
+        }
+      },
+      // Only when the refresh token itself is rejected — a network blip leaves you signed in.
+      onRefreshFailed: () => {
+        localStorage.removeItem(STORAGE_KEY);
+        setAccessToken(null);
+        setState({ session: null, isReady: true });
+      },
+    });
+    return () => setAuthHandlers(null);
+  }, []);
+
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
