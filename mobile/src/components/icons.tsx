@@ -60,3 +60,11 @@ export function PlusIcon({ color = '#000', size = 20 }: IconProps) {
     </Svg>
   );
 }
+
+export function ChevronIcon({ color = '#000', size = 16 }: IconProps) {
+  return (
+    <Svg {...base({ width: size, height: size, stroke: color })}>
+      <Path d="M6 9l6 6 6-6" />
+    </Svg>
+  );
+}
