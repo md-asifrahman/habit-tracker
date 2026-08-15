@@ -1,11 +1,12 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { challengesApi, formatTime, soundLabel, todayIso } from '@/lib/challenges';
-import { DayStrip, ProgressBar, RingProgress, StatTile } from '@/components/challenge-visuals';
+import { challengesApi, formatTime, restDaysLabel, soundLabel, todayIso } from '@/lib/challenges';
+import { DayStrip, ProgressBar, RingProgress, StatTile, TrendChart } from '@/components/challenge-visuals';
+import { LogDayDialog } from '@/components/LogDayDialog';
 import { BackIcon } from '@/components/icons';
 
 export default function ChallengeReportPage({ params }: { params: Promise<{ id: string }> }) {
@@ -15,6 +16,8 @@ export default function ChallengeReportPage({ params }: { params: Promise<{ id: 
 
   const { data: challenge } = useQuery({ queryKey: ['challenge', id], queryFn: () => challengesApi.get(id) });
   const { data: report, isLoading } = useQuery({ queryKey: ['report', id], queryFn: () => challengesApi.report(id) });
+  const { data: logs } = useQuery({ queryKey: ['logs', id], queryFn: () => challengesApi.logs(id) });
+  const [logDate, setLogDate] = useState<string | null>(null);
 
   if (isLoading || !challenge || !report) {
     return <p className="p-8 text-sm text-text-muted">Loading…</p>;
@@ -26,6 +29,22 @@ export default function ChallengeReportPage({ params }: { params: Promise<{ id: 
     await challengesApi.abandon(id);
     queryClient.invalidateQueries({ queryKey: ['challenge', id] });
     queryClient.invalidateQueries({ queryKey: ['challenges'] });
+  }
+
+  // Starts a fresh challenge from this one's settings and task list.
+  async function runItAgain() {
+    const copy = await challengesApi.create({
+      title: challenge!.title,
+      durationDays: challenge!.durationDays,
+      reminderTime: challenge!.reminderTime.slice(0, 5),
+      reminderSound: challenge!.reminderSound,
+      repeatEnabled: challenge!.repeatEnabled,
+      repeatEveryMin: challenge!.repeatEveryMin,
+      tasks: challenge!.tasks.map((task) => task.title),
+      restDays: challenge!.restDays ?? [],
+    });
+    queryClient.invalidateQueries({ queryKey: ['challenges'] });
+    router.push(`/challenges/${copy.id}`);
   }
 
   async function remove() {
@@ -73,10 +92,15 @@ export default function ChallengeReportPage({ params }: { params: Promise<{ id: 
       </div>
 
       <Section title="Day by day">
-        <DayStrip days={report.days} />
+        <DayStrip days={report.days} onSelectDay={(day) => setLogDate(day.date)} />
         <p className="mt-3 text-xs text-text-muted">
-          Darker means more of the list got done. Outlined squares are still ahead.
+          Darker means more of the list got done. Click any past day to fill it in or correct it.
+          Outlined squares are rest days or still ahead.
         </p>
+      </Section>
+
+      <Section title="Trend">
+        <TrendChart days={report.days} />
       </Section>
 
       <Section title="Task breakdown">
@@ -105,11 +129,21 @@ export default function ChallengeReportPage({ params }: { params: Promise<{ id: 
             ? `Repeats every ${challenge.repeatEveryMin} min until the day is logged`
             : 'No repeat if missed'}
           <br />
+          Rest days: {restDaysLabel(challenge.restDays ?? [])}
+          <br />
           <span className="text-text-muted">Reminders fire on the phone app.</span>
         </p>
       </Section>
 
       <div className="flex gap-3">
+        {!isRunning && (
+          <button
+            onClick={runItAgain}
+            className="flex-1 rounded-xl bg-accent py-3 text-sm font-bold text-accent-ink"
+          >
+            Run it again
+          </button>
+        )}
         {isRunning && (
           <button onClick={end} className="flex-1 rounded-xl border border-border py-3 text-sm font-bold">
             End challenge
@@ -119,6 +153,20 @@ export default function ChallengeReportPage({ params }: { params: Promise<{ id: 
           Delete
         </button>
       </div>
+
+      {logDate && (
+        <LogDayDialog
+          challenge={challenge}
+          date={logDate}
+          existing={logs?.find((log) => log.date === logDate)}
+          onClose={() => setLogDate(null)}
+          onSaved={() => {
+            setLogDate(null);
+            queryClient.invalidateQueries({ queryKey: ['logs', id] });
+            queryClient.invalidateQueries({ queryKey: ['report', id] });
+          }}
+        />
+      )}
     </div>
   );
 }

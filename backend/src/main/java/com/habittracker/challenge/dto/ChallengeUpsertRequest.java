@@ -24,4 +24,6 @@ public record ChallengeUpsertRequest(
         @NotNull String reminderSound,
         boolean repeatEnabled,
         @NotNull @Min(5) @Max(240) Integer repeatEveryMin,
-        @NotEmpty List<@Valid TaskUpsertRequest> tasks) {}
+        @NotEmpty List<@Valid TaskUpsertRequest> tasks,
+        /** ISO day-of-week numbers (1=Mon .. 7=Sun) to skip. Null or empty means every day. */
+        List<@Min(1) @Max(7) Integer> restDays) {}

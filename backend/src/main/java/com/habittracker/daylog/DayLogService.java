@@ -3,6 +3,7 @@ package com.habittracker.daylog;
 import com.habittracker.challenge.Challenge;
 import com.habittracker.challenge.ChallengeService;
 import com.habittracker.challenge.ChallengeTask;
+import com.habittracker.challenge.RestDays;
 import com.habittracker.common.RequestZone;
 import com.habittracker.common.exception.ApiException;
 import com.habittracker.daylog.dto.ChallengeReport;
@@ -98,8 +99,7 @@ public class DayLogService {
         logs.forEach(log -> byDate.put(log.getDate(), log));
 
         LocalDate today = requestZone.today();
-        // Days that have already happened — the denominator for averages and missed days.
-        int elapsed = (int) Math.max(
+        int calendarElapsed = (int) Math.max(
                 0,
                 Math.min(
                         ChronoUnit.DAYS.between(challenge.getStartDate(), today) + 1,
@@ -110,14 +110,18 @@ public class DayLogService {
         int perfectDays = 0;
         int bestStreak = 0;
         int runningStreak = 0;
+        // Only active days that have already happened count — rest days are not misses.
+        int elapsed = 0;
 
         for (int i = 0; i < challenge.getDurationDays(); i++) {
             LocalDate date = challenge.getStartDate().plusDays(i);
-            boolean future = i >= elapsed;
+            boolean future = i >= calendarElapsed;
+            boolean restDay = RestDays.isRestDay(challenge, date);
             DayLog log = byDate.get(date);
             int pct = log != null ? log.getCompletionPercent() : 0;
 
-            if (!future) {
+            if (!future && !restDay) {
+                elapsed++;
                 percentSum += pct;
                 if (pct == 100) {
                     perfectDays++;
@@ -127,12 +131,16 @@ public class DayLogService {
                     runningStreak = 0;
                 }
             }
-            days.add(new ChallengeReport.DayCell(i + 1, date, pct, log != null, future));
+            // A rest day neither extends nor breaks a streak; it is simply skipped over.
+            days.add(new ChallengeReport.DayCell(i + 1, date, pct, log != null, future, restDay));
         }
 
         List<ChallengeReport.TaskBreakdown> breakdown = new ArrayList<>();
         for (ChallengeTask task : challenge.getTasks()) {
             int done = (int) logs.stream()
+                    // A tick on a rest day is a bonus, not part of the score — the denominator
+                    // excludes those days, so the numerator has to as well.
+                    .filter(log -> !RestDays.isRestDay(challenge, log.getDate()))
                     .flatMap(log -> log.getTaskLogs().stream())
                     .filter(taskLog -> taskLog.isDone() && taskLog.getTask().getId().equals(task.getId()))
                     .count();
@@ -142,6 +150,7 @@ public class DayLogService {
 
         int daysLogged = (int) logs.stream()
                 .filter(log -> !log.getDate().isAfter(today))
+                .filter(log -> !RestDays.isRestDay(challenge, log.getDate()))
                 .count();
 
         return new ChallengeReport(

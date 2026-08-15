@@ -17,6 +17,8 @@ export interface Challenge {
   repeatEnabled: boolean;
   repeatEveryMin: number;
   tasks: ChallengeTask[];
+  /** ISO day-of-week numbers (1=Mon .. 7=Sun) the challenge takes off. */
+  restDays: number[];
   /** Ids of the scheduled local notifications, so they can be cancelled on edit/delete. */
   notificationIds: string[];
   /** ISO instant of the last local edit — the tie-breaker when syncing with the server. */
@@ -31,6 +33,7 @@ export interface DayLog {
   completedTaskIds: string[];
   completionPercent: number; // 0-100, snapshotted at save time
   taskCount: number;
+  note?: string;
   /** ISO instant of the last local edit — the tie-breaker when syncing with the server. */
   updatedAt: string;
 }
@@ -44,6 +47,8 @@ export interface DayCell {
   completionPercent: number;
   logged: boolean;
   future: boolean;
+  /** A planned day off: no reminder, and excluded from every figure in the report. */
+  restDay: boolean;
 }
 
 export interface TaskBreakdown {

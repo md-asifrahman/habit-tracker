@@ -106,24 +106,47 @@ export async function syncReminders(challenge: Challenge, loggedDates: Set<strin
   const [hour, minute] = challenge.reminderTime.split(':').map(Number);
   const sound = soundFor(challenge.reminderSound);
   const channelId = channelFor(challenge.reminderSound);
+  const restDays = challenge.restDays ?? [];
   const ids: string[] = [];
 
-  // The dependable part: one repeating daily reminder for as long as the challenge runs.
-  const dailyId = await Notifications.scheduleNotificationAsync({
-    content: {
-      title: challenge.title,
-      body: "Time to tick off today's list.",
-      sound,
-      data: { challengeId: challenge.id, silent: sound === undefined },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
-      channelId,
-    },
-  });
-  ids.push(dailyId);
+  const content = {
+    title: challenge.title,
+    body: "Time to tick off today's list.",
+    sound,
+    data: { challengeId: challenge.id, silent: sound === undefined },
+  };
+
+  // The dependable part: a repeating trigger that keeps firing without the app being opened.
+  if (restDays.length === 0) {
+    ids.push(
+      await Notifications.scheduleNotificationAsync({
+        content,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour,
+          minute,
+          channelId,
+        },
+      }),
+    );
+  } else {
+    // A daily trigger can't skip days, so each active weekday gets its own weekly trigger.
+    for (let isoDay = 1; isoDay <= 7; isoDay++) {
+      if (restDays.includes(isoDay)) continue;
+      ids.push(
+        await Notifications.scheduleNotificationAsync({
+          content,
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+            weekday: expoWeekday(isoDay),
+            hour,
+            minute,
+            channelId,
+          },
+        }),
+      );
+    }
+  }
 
   if (!challenge.repeatEnabled) return ids;
 
@@ -134,6 +157,7 @@ export async function syncReminders(challenge: Challenge, loggedDates: Set<strin
     const iso = toIso(day);
     if (iso > challenge.endDate) break;
     if (iso < challenge.startDate || loggedDates.has(iso)) continue;
+    if (restDays.includes(isoWeekdayOf(day))) continue; // no nagging on a planned day off
 
     for (let repeat = 1; repeat <= MAX_REPEATS; repeat++) {
       const total = hour * 60 + minute + repeat * challenge.repeatEveryMin;
@@ -161,6 +185,17 @@ export async function syncReminders(challenge: Challenge, loggedDates: Set<strin
   }
 
   return ids;
+}
+
+/** Expo counts weekdays from Sunday (1); we store ISO weekdays from Monday (1). */
+function expoWeekday(isoDay: number): number {
+  return (isoDay % 7) + 1;
+}
+
+/** ISO day of week for a Date: 1 = Monday .. 7 = Sunday. */
+function isoWeekdayOf(date: Date): number {
+  const day = date.getDay(); // 0 = Sunday
+  return day === 0 ? 7 : day;
 }
 
 function toIso(date: Date): string {

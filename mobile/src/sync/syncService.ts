@@ -48,6 +48,7 @@ function fromRemote(remote: RemoteChallenge, existing?: Challenge): Challenge {
     tasks: [...remote.tasks]
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map((task) => ({ id: task.id, title: task.title })),
+    restDays: remote.restDays ?? [],
     // Scheduled notification ids are per-device and never come from the server.
     notificationIds: existing?.notificationIds ?? [],
     updatedAt: remote.updatedAt,
@@ -65,6 +66,7 @@ function toRemote(challenge: Challenge) {
     repeatEnabled: challenge.repeatEnabled,
     repeatEveryMin: challenge.repeatEveryMin,
     tasks: challenge.tasks.map((task) => ({ id: task.id, title: task.title })),
+    restDays: challenge.restDays ?? [],
   };
 }
 
@@ -76,6 +78,7 @@ function logFromRemote(challengeId: string, remote: RemoteDayLog, existingId?: s
     completedTaskIds: remote.completedTaskIds,
     completionPercent: remote.completionPercent,
     taskCount: remote.taskCount,
+    note: remote.note ?? undefined,
     updatedAt: remote.updatedAt,
   };
 }
@@ -144,7 +147,7 @@ export const useSyncStore = create<SyncState>()((set) => ({
           for (const log of localLogs) {
             const remote = remoteByDate.get(log.date);
             if (!remote || isNewer(log.updatedAt, remote.updatedAt)) {
-              const saved = await challengesApi.logDay(challenge.id, log.date, log.completedTaskIds);
+              const saved = await challengesApi.logDay(challenge.id, log.date, log.completedTaskIds, log.note);
               mergedLogs.push(logFromRemote(challenge.id, saved, log.id));
             } else {
               mergedLogs.push(logFromRemote(challenge.id, remote, log.id));

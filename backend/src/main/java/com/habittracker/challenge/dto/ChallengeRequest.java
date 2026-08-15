@@ -18,4 +18,6 @@ public record ChallengeRequest(
         @NotNull String reminderSound,
         boolean repeatEnabled,
         @NotNull @Min(5) @Max(240) Integer repeatEveryMin,
-        @NotEmpty List<@NotNull @Size(min = 1, max = 200) String> tasks) {}
+        @NotEmpty List<@NotNull @Size(min = 1, max = 200) String> tasks,
+        /** ISO day-of-week numbers (1=Mon .. 7=Sun) to skip. Null or empty means every day. */
+        List<@Min(1) @Max(7) Integer> restDays) {}

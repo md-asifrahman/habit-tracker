@@ -4,8 +4,10 @@ import { useState } from 'react';
 import {
   formatTime,
   normalizeSound,
+  restDaysLabel,
   soundLabel,
   SOUND_OPTIONS,
+  WEEKDAY_LABELS,
   type Challenge,
   type SoundKey,
 } from '@/lib/challenges';
@@ -35,6 +37,7 @@ export interface ChallengeFormValues {
   repeatEnabled: boolean;
   repeatEveryMin: number;
   tasks: TaskDraft[];
+  restDays: number[];
 }
 
 /**
@@ -60,6 +63,7 @@ export function ChallengeForm({
   const [tasks, setTasks] = useState<TaskDraft[]>(
     initial?.tasks.map((task) => ({ id: task.id, title: task.title })) ?? [],
   );
+  const [restDays, setRestDays] = useState<number[]>(initial?.restDays ?? []);
   const [taskDraft, setTaskDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -67,7 +71,7 @@ export function ChallengeForm({
   // A running challenge can't change length — that would invalidate every day already logged.
   const durationLocked = !!initial;
 
-  const setupValid = title.trim().length > 0 && durationDays >= 1;
+  const setupValid = title.trim().length > 0 && durationDays >= 1 && restDays.length < 7;
   const tasksValid = tasks.length > 0;
 
   function addTask() {
@@ -99,6 +103,7 @@ export function ChallengeForm({
         repeatEnabled,
         repeatEveryMin,
         tasks,
+        restDays,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the challenge');
@@ -159,6 +164,40 @@ export function ChallengeForm({
                   className="w-28 rounded-full border border-border bg-bg px-3.5 py-2 text-sm outline-none focus:border-accent"
                 />
               </div>
+            )}
+          </Field>
+
+          <Field label="Rest days">
+            <p className="mb-2.5 text-xs text-text-muted">
+              Days you plan to take off. No reminder, and they never count against you.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {WEEKDAY_LABELS.map((day) => {
+                const off = restDays.includes(day.value);
+                return (
+                  <button
+                    key={day.value}
+                    onClick={() =>
+                      setRestDays((current) =>
+                        off ? current.filter((v) => v !== day.value) : [...current, day.value],
+                      )
+                    }
+                    className="min-w-12 rounded-xl border px-3 py-2 text-[12.5px] font-bold"
+                    style={{
+                      background: off ? 'var(--accent)' : 'var(--bg)',
+                      borderColor: off ? 'var(--accent)' : 'var(--border)',
+                      color: off ? 'var(--accent-ink)' : 'var(--text)',
+                    }}
+                  >
+                    {day.short}
+                  </button>
+                );
+              })}
+            </div>
+            {restDays.length >= 7 && (
+              <p className="mt-2 text-xs text-danger">
+                Every day can&apos;t be a rest day — leave at least one active.
+              </p>
             )}
           </Field>
 
@@ -276,6 +315,7 @@ export function ChallengeForm({
           <SummaryCard title="Challenge" onEdit={() => setStep('setup')}>
             <SummaryRow label="Name" value={title.trim()} />
             <SummaryRow label="Length" value={`${durationDays} days`} />
+            <SummaryRow label="Rest days" value={restDaysLabel(restDays)} />
             <SummaryRow label="Reminder" value={formatTime(reminderTime)} />
             <SummaryRow label="Sound" value={soundLabel(reminderSound)} />
             <SummaryRow

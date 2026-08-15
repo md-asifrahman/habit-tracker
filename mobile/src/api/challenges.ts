@@ -14,6 +14,7 @@ export interface RemoteChallenge {
   repeatEnabled: boolean;
   repeatEveryMin: number;
   tasks: { id: string; title: string; sortOrder: number }[];
+  restDays: number[];
   updatedAt: string;
 }
 
@@ -38,6 +39,7 @@ export interface ChallengeUpsertBody {
   repeatEnabled: boolean;
   repeatEveryMin: number;
   tasks: { id: string; title: string }[];
+  restDays: number[];
 }
 
 export const challengesApi = {
@@ -45,6 +47,6 @@ export const challengesApi = {
   upsert: (id: string, body: ChallengeUpsertBody) => api.put<RemoteChallenge>(`/challenges/${id}`, body),
   remove: (id: string) => api.delete<void>(`/challenges/${id}`),
   logs: (id: string) => api.get<RemoteDayLog[]>(`/challenges/${id}/logs`),
-  logDay: (id: string, date: string, completedTaskIds: string[]) =>
-    api.put<RemoteDayLog>(`/challenges/${id}/logs`, { date, completedTaskIds }),
+  logDay: (id: string, date: string, completedTaskIds: string[], note?: string) =>
+    api.put<RemoteDayLog>(`/challenges/${id}/logs`, { date, completedTaskIds, note }),
 };

@@ -24,6 +24,7 @@ export default function NewChallengePage() {
             repeatEnabled: values.repeatEnabled,
             repeatEveryMin: values.repeatEveryMin,
             tasks: values.tasks.map((task) => task.title),
+            restDays: values.restDays,
           });
           queryClient.invalidateQueries({ queryKey: ['challenges'] });
           router.push(`/challenges/${challenge.id}`);

@@ -21,6 +21,8 @@ public record ChallengeResponse(
         boolean repeatEnabled,
         int repeatEveryMin,
         List<TaskResponse> tasks,
+        /** ISO day-of-week numbers (1=Mon .. 7=Sun) the challenge takes off. */
+        List<Integer> restDays,
         /** Used by the mobile client to decide which side of a sync is newer. */
         java.time.Instant updatedAt) {
 
@@ -38,6 +40,7 @@ public record ChallengeResponse(
                 challenge.isRepeatEnabled(),
                 challenge.getRepeatEveryMin(),
                 challenge.getTasks().stream().map(TaskResponse::from).toList(),
+                com.habittracker.challenge.RestDays.parse(challenge.getRestDays()),
                 challenge.getUpdatedAt());
     }
 

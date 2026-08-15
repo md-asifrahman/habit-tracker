@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { LayoutAnimation, Platform, Pressable, ScrollView, StyleSheet, Text, UIManager, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { fonts, useTheme } from '../theme/useTheme';
 import { useChallengesStore } from '../store/challengesStore';
-import { formatTime, todayIso } from '../store/id';
-import { ProgressBar, RingProgress } from '../components/ChallengeVisuals';
-import { CheckIcon, ChevronIcon, PlusIcon } from '../components/icons';
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import { formatTime, isoWeekday, todayIso } from '../store/id';
+import { RingProgress } from '../components/ChallengeVisuals';
+import { DayChecklist } from '../components/DayChecklist';
+import { ChevronIcon, PlusIcon } from '../components/icons';
+import type { RootStackParamList, TabParamList } from '../navigation/RootNavigator';
 import { syncInBackground } from '../sync/syncService';
 import type { Challenge, DayLog } from '../store/types';
 
@@ -24,7 +25,14 @@ export default function TodayScreen() {
   const logFor = useChallengesStore((state) => state.logFor);
 
   // One card open at a time — the whole point is that the list stays scannable.
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const route = useRoute<RouteProp<TabParamList, 'Today'>>();
+  const focusChallengeId = route.params?.challengeId;
+  const [expandedId, setExpandedId] = useState<string | null>(focusChallengeId ?? null);
+
+  // Tapping a reminder lands here with the challenge it was for — open that one.
+  useEffect(() => {
+    if (focusChallengeId) setExpandedId(focusChallengeId);
+  }, [focusChallengeId]);
 
   const active = useMemo(() => activeChallenges(), [challenges, activeChallenges]);
   const today = todayIso();
@@ -33,7 +41,10 @@ export default function TodayScreen() {
     void syncAllReminders();
   }, [syncAllReminders]);
 
-  const remaining = active.filter((challenge) => !logFor(challenge.id, today)).length;
+  const remaining = active.filter(
+    (challenge) =>
+      !(challenge.restDays ?? []).includes(isoWeekday(today)) && !logFor(challenge.id, today),
+  ).length;
 
   const dateLabel = new Date().toLocaleDateString(undefined, {
     weekday: 'long',
@@ -126,25 +137,7 @@ function TodayCard({
   const dayNumber = useChallengesStore((state) => state.dayNumber);
 
   const today = todayIso();
-  const [checked, setChecked] = useState<string[]>(saved?.completedTaskIds ?? []);
-
-  const total = challenge.tasks.length;
-  const done = checked.length;
-  const pct = total === 0 ? 0 : Math.round((done * 100) / total);
-  const allChecked = total > 0 && done === total;
-  const dirty = !saved || !sameSet(checked, saved.completedTaskIds);
-
-  function toggleTask(taskId: string) {
-    setChecked((current) =>
-      current.includes(taskId) ? current.filter((id) => id !== taskId) : [...current, taskId],
-    );
-  }
-
-  function save() {
-    logDay(challenge.id, today, checked);
-    syncInBackground();
-    onSaved();
-  }
+  const isRestDay = (challenge.restDays ?? []).includes(isoWeekday(today));
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -159,7 +152,11 @@ function TodayCard({
           </Text>
         </View>
 
-        {saved ? (
+        {isRestDay ? (
+          <View style={[styles.pendingPill, { backgroundColor: colors.surface2 }]}>
+            <Text style={{ color: colors.textMuted, fontFamily: fonts.bodyBold, fontSize: 11.5 }}>Rest</Text>
+          </View>
+        ) : saved ? (
           <View style={styles.statusWrap}>
             <RingProgress
               value={saved.completionPercent / 100}
@@ -184,97 +181,34 @@ function TodayCard({
         </View>
       </Pressable>
 
-      {expanded && (
-        <>
-          <View style={{ gap: 2, marginTop: 12 }}>
-            {challenge.tasks.map((task) => {
-              const on = checked.includes(task.id);
-              return (
-                <Pressable key={task.id} onPress={() => toggleTask(task.id)} style={styles.taskRow}>
-                  <View
-                    style={[
-                      styles.checkbox,
-                      {
-                        borderColor: on ? colors.success : colors.border,
-                        backgroundColor: on ? colors.success : 'transparent',
-                      },
-                    ]}
-                  >
-                    {on && <CheckIcon color="#fff" size={13} />}
-                  </View>
-                  <Text
-                    style={[
-                      styles.taskText,
-                      {
-                        color: on ? colors.textMuted : colors.text,
-                        fontFamily: fonts.body,
-                        textDecorationLine: on ? 'line-through' : 'none',
-                      },
-                    ]}
-                  >
-                    {task.title}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <Pressable
-            onPress={() => setChecked(allChecked ? [] : challenge.tasks.map((task) => task.id))}
-            style={[styles.selectAllRow, { borderTopColor: colors.border }]}
-          >
-            <View
-              style={[
-                styles.checkbox,
-                {
-                  borderColor: allChecked ? colors.accent : colors.border,
-                  backgroundColor: allChecked ? colors.accent : 'transparent',
-                },
-              ]}
-            >
-              {allChecked && <CheckIcon color={colors.accentInk} size={13} />}
-            </View>
-            <Text style={[styles.selectAllText, { color: colors.text, fontFamily: fonts.bodyBold }]}>Select all</Text>
-            <Text style={[styles.countText, { color: colors.textMuted, fontFamily: fonts.body }]}>
-              {done}/{total}
+      {expanded &&
+        (isRestDay ? (
+          <View style={[styles.restNotice, { borderTopColor: colors.border }]}>
+            <Text style={{ color: colors.textMuted, fontFamily: fonts.body, fontSize: 13.5, lineHeight: 20 }}>
+              Today is a rest day for this challenge. Nothing to do — it won&apos;t count against you.
             </Text>
-          </Pressable>
-
-          <View style={{ marginTop: 12 }}>
-            <ProgressBar value={pct} color={colors.accent} trackColor={colors.surface2} />
           </View>
-
-          <View style={styles.actionRow}>
+        ) : (
+          <DayChecklist
+            challenge={challenge}
+            saved={saved}
+            saveLabel="Save"
+            onSave={(completedTaskIds, note) => {
+              logDay(challenge.id, today, completedTaskIds, note || undefined);
+              syncInBackground();
+              onSaved();
+            }}
+          >
             <Pressable
               onPress={() => navigation.navigate('ChallengeDetail', { challengeId: challenge.id })}
               style={styles.detailsBtn}
             >
               <Text style={{ color: colors.textMuted, fontFamily: fonts.bodyBold, fontSize: 13 }}>Details</Text>
             </Pressable>
-            <Pressable
-              onPress={save}
-              disabled={!dirty}
-              style={[styles.saveBtn, { backgroundColor: dirty ? colors.accent : colors.surface2 }]}
-            >
-              <Text
-                style={{
-                  color: dirty ? colors.accentInk : colors.textMuted,
-                  fontFamily: fonts.bodyBold,
-                  fontSize: 14,
-                }}
-              >
-                {dirty ? `Save — ${pct}%` : `Saved · ${pct}%`}
-              </Text>
-            </Pressable>
-          </View>
-        </>
-      )}
+          </DayChecklist>
+        ))}
     </View>
   );
-}
-
-function sameSet(a: string[], b: string[]): boolean {
-  return a.length === b.length && a.every((value) => b.includes(value));
 }
 
 const styles = StyleSheet.create({
@@ -294,20 +228,6 @@ const styles = StyleSheet.create({
   statusWrap: { alignItems: 'center', justifyContent: 'center' },
   ringMini: { fontSize: 10 },
   pendingPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-  taskRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, gap: 10 },
-  checkbox: { width: 22, height: 22, borderRadius: 7, borderWidth: 1.8, alignItems: 'center', justifyContent: 'center' },
-  taskText: { fontSize: 14, flex: 1 },
-  selectAllRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderTopWidth: 1,
-    marginTop: 6,
-    paddingTop: 12,
-  },
-  selectAllText: { fontSize: 13.5, flex: 1 },
-  countText: { fontSize: 13 },
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
   detailsBtn: { paddingHorizontal: 14, paddingVertical: 12 },
-  saveBtn: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  restNotice: { borderTopWidth: 1, marginTop: 12, paddingTop: 12 },
 });

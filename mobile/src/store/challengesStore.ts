@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { cancelReminders, normalizeSound, syncReminders } from '../notifications/reminders';
-import { addDaysIso, daysBetween, todayIso, uuid } from './id';
+import { addDaysIso, daysBetween, isoWeekday, todayIso, uuid } from './id';
 import type { Challenge, ChallengeReport, DayCell, DayLog, SoundKey, TaskBreakdown } from './types';
 
 export interface ChallengeDraft {
@@ -13,6 +13,7 @@ export interface ChallengeDraft {
   repeatEnabled: boolean;
   repeatEveryMin: number;
   taskTitles: string[];
+  restDays: number[];
 }
 
 interface ChallengesState {
@@ -23,8 +24,10 @@ interface ChallengesState {
   addChallenge: (draft: ChallengeDraft) => Challenge;
   updateChallenge: (id: string, draft: ChallengeDraft) => void;
   abandonChallenge: (id: string) => void;
+  /** Starts a new challenge from a finished one's settings and task list. */
+  duplicateChallenge: (id: string) => Challenge | null;
   deleteChallenge: (id: string) => void;
-  logDay: (challengeId: string, date: string, completedTaskIds: string[]) => void;
+  logDay: (challengeId: string, date: string, completedTaskIds: string[], note?: string) => void;
   logFor: (challengeId: string, date: string) => DayLog | undefined;
   activeChallenges: () => Challenge[];
   dayNumber: (challenge: Challenge) => number;
@@ -61,6 +64,7 @@ export const useChallengesStore = create<ChallengesState>()(
           repeatEnabled: draft.repeatEnabled,
           repeatEveryMin: draft.repeatEveryMin,
           tasks: draft.taskTitles.map((title) => ({ id: uuid(), title: title.trim() })),
+          restDays: [...draft.restDays].sort(),
           notificationIds: [],
           updatedAt: new Date().toISOString(),
         };
@@ -86,11 +90,27 @@ export const useChallengesStore = create<ChallengesState>()(
               repeatEnabled: draft.repeatEnabled,
               repeatEveryMin: draft.repeatEveryMin,
               tasks,
+              restDays: [...draft.restDays].sort(),
               updatedAt: new Date().toISOString(),
             };
           }),
         }));
         void get().syncAllReminders();
+      },
+
+      duplicateChallenge: (id) => {
+        const source = get().challenges.find((candidate) => candidate.id === id);
+        if (!source) return null;
+        return get().addChallenge({
+          title: source.title,
+          durationDays: source.durationDays,
+          reminderTime: source.reminderTime,
+          reminderSound: source.reminderSound,
+          repeatEnabled: source.repeatEnabled,
+          repeatEveryMin: source.repeatEveryMin,
+          taskTitles: source.tasks.map((task) => task.title),
+          restDays: source.restDays,
+        });
       },
 
       abandonChallenge: (id) => {
@@ -116,7 +136,7 @@ export const useChallengesStore = create<ChallengesState>()(
         }));
       },
 
-      logDay: (challengeId, date, completedTaskIds) => {
+      logDay: (challengeId, date, completedTaskIds, note) => {
         const challenge = get().challenges.find((candidate) => candidate.id === challengeId);
         if (!challenge) return;
         const taskCount = challenge.tasks.length;
@@ -127,6 +147,7 @@ export const useChallengesStore = create<ChallengesState>()(
           completedTaskIds,
           taskCount,
           completionPercent: percent(completedTaskIds.length, taskCount),
+          note,
           updatedAt: new Date().toISOString(),
         };
         set((state) => {
@@ -174,14 +195,18 @@ export const useChallengesStore = create<ChallengesState>()(
         let perfectDays = 0;
         let bestStreak = 0;
         let running = 0;
+        // Only active days that have already happened count — rest days are not misses.
+        let activeElapsed = 0;
 
         for (let i = 0; i < challenge.durationDays; i++) {
           const date = addDaysIso(challenge.startDate, i);
           const future = i >= elapsed;
+          const restDay = challenge.restDays.includes(isoWeekday(date));
           const log = byDate.get(date);
           const completionPercent = log?.completionPercent ?? 0;
 
-          if (!future) {
+          if (!future && !restDay) {
+            activeElapsed++;
             percentSum += completionPercent;
             if (completionPercent === 100) {
               perfectDays++;
@@ -191,28 +216,32 @@ export const useChallengesStore = create<ChallengesState>()(
               running = 0;
             }
           }
-          days.push({ dayNumber: i + 1, date, completionPercent, logged: !!log, future });
+          // A rest day neither extends nor breaks a streak; it is simply skipped over.
+          days.push({ dayNumber: i + 1, date, completionPercent, logged: !!log, future, restDay });
         }
 
+        // A tick on a rest day is a bonus, not part of the score.
+        const scoredLogs = logs.filter((log) => !challenge.restDays.includes(isoWeekday(log.date)));
+
         const taskBreakdown: TaskBreakdown[] = challenge.tasks.map((task) => {
-          const completedDays = logs.filter((log) => log.completedTaskIds.includes(task.id)).length;
+          const completedDays = scoredLogs.filter((log) => log.completedTaskIds.includes(task.id)).length;
           return {
             taskId: task.id,
             title: task.title,
             completedDays,
-            elapsedDays: elapsed,
-            percent: percent(completedDays, elapsed),
+            elapsedDays: activeElapsed,
+            percent: percent(completedDays, activeElapsed),
           };
         });
 
-        const daysLogged = logs.filter((log) => log.date <= today).length;
+        const daysLogged = scoredLogs.filter((log) => log.date <= today).length;
 
         return {
-          daysElapsed: elapsed,
+          daysElapsed: activeElapsed,
           daysLogged,
-          daysMissed: Math.max(0, elapsed - daysLogged),
+          daysMissed: Math.max(0, activeElapsed - daysLogged),
           perfectDays,
-          averagePercent: elapsed === 0 ? 0 : Math.round(percentSum / elapsed),
+          averagePercent: activeElapsed === 0 ? 0 : Math.round(percentSum / activeElapsed),
           bestStreak,
           days,
           taskBreakdown,
@@ -242,9 +271,9 @@ export const useChallengesStore = create<ChallengesState>()(
     {
       name: 'habittracker.challenges',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
-      // v0 offered bundled sound names (chime/bell/marimba) that never actually played;
-      // everything that isn't "silent" is now the device's own notification sound.
+      version: 2,
+      // v0 offered bundled sound names (chime/bell/marimba) that never actually played, and had
+      // no rest days. Both need filling in or report() reads undefined on an old record.
       migrate: (persisted) => {
         const state = persisted as { challenges?: Challenge[] };
         return {
@@ -252,6 +281,7 @@ export const useChallengesStore = create<ChallengesState>()(
           challenges: (state.challenges ?? []).map((challenge) => ({
             ...challenge,
             reminderSound: normalizeSound(challenge.reminderSound),
+            restDays: challenge.restDays ?? [],
           })),
         } as never;
       },

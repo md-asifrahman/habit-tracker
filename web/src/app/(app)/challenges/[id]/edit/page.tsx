@@ -46,6 +46,7 @@ export default function EditChallengePage({ params }: { params: Promise<{ id: st
             repeatEnabled: values.repeatEnabled,
             repeatEveryMin: values.repeatEveryMin,
             tasks: values.tasks,
+            restDays: values.restDays,
           });
           queryClient.invalidateQueries({ queryKey: ['challenge', id] });
           queryClient.invalidateQueries({ queryKey: ['challenges'] });

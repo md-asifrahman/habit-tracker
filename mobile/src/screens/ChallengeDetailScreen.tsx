@@ -3,9 +3,9 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { fonts, useTheme } from '../theme/useTheme';
 import { useChallengesStore } from '../store/challengesStore';
-import { formatTime, todayIso } from '../store/id';
+import { formatTime, restDaysLabel, todayIso } from '../store/id';
 import { soundLabel } from '../notifications/reminders';
-import { DayStrip, ProgressBar, RingProgress, StatTile } from '../components/ChallengeVisuals';
+import { DayStrip, ProgressBar, RingProgress, StatTile, TrendChart } from '../components/ChallengeVisuals';
 import { BackIcon } from '../components/icons';
 import { syncInBackground } from '../sync/syncService';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -19,6 +19,7 @@ export default function ChallengeDetailScreen() {
   const report = useChallengesStore((state) => state.report);
   const abandonChallenge = useChallengesStore((state) => state.abandonChallenge);
   const deleteChallenge = useChallengesStore((state) => state.deleteChallenge);
+  const duplicateChallenge = useChallengesStore((state) => state.duplicateChallenge);
 
   const summary = challenge ? report(challengeId) : null;
 
@@ -89,10 +90,18 @@ export default function ChallengeDetailScreen() {
         </View>
 
         <Section title="Day by day">
-          <DayStrip days={summary.days} />
+          <DayStrip
+            days={summary.days}
+            onPressDay={(day) => navigation.navigate('LogDay', { challengeId, date: day.date })}
+          />
           <Text style={[styles.caption, { color: colors.textMuted, fontFamily: fonts.body }]}>
-            Darker means more of the list got done. Outlined squares are still ahead.
+            Darker means more of the list got done. Tap any past day to fill it in or correct it.
+            Outlined squares are rest days or still ahead.
           </Text>
+        </Section>
+
+        <Section title="Trend">
+          <TrendChart days={summary.days} />
         </Section>
 
         <Section title="Task breakdown">
@@ -125,10 +134,26 @@ export default function ChallengeDetailScreen() {
             {challenge.repeatEnabled
               ? `Repeats every ${challenge.repeatEveryMin} min until the day is logged`
               : 'No repeat if missed'}
+            {'\n'}
+            Rest days: {restDaysLabel(challenge.restDays ?? [])}
           </Text>
         </Section>
 
         <View style={{ gap: 10, marginTop: 8 }}>
+          {!isRunning && (
+            <Pressable
+              onPress={() => {
+                const copy = duplicateChallenge(challengeId);
+                syncInBackground();
+                if (copy) navigation.replace('ChallengeDetail', { challengeId: copy.id });
+              }}
+              style={[styles.secondaryBtn, { backgroundColor: colors.accent, borderColor: colors.accent }]}
+            >
+              <Text style={{ color: colors.accentInk, fontFamily: fonts.bodyBold, fontSize: 13.5 }}>
+                Run it again
+              </Text>
+            </Pressable>
+          )}
           {isRunning && (
             <Pressable
               onPress={() => {

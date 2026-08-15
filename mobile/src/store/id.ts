@@ -43,3 +43,27 @@ export function uuid(): string {
     return value.toString(16);
   });
 }
+
+/** ISO day of week for a yyyy-mm-dd date: 1 = Monday .. 7 = Sunday. */
+export function isoWeekday(iso: string): number {
+  const day = new Date(`${iso}T00:00:00`).getDay(); // 0 = Sunday
+  return day === 0 ? 7 : day;
+}
+
+export const WEEKDAY_LABELS: { value: number; short: string }[] = [
+  { value: 1, short: 'Mon' },
+  { value: 2, short: 'Tue' },
+  { value: 3, short: 'Wed' },
+  { value: 4, short: 'Thu' },
+  { value: 5, short: 'Fri' },
+  { value: 6, short: 'Sat' },
+  { value: 7, short: 'Sun' },
+];
+
+/** "Sat, Sun" — or "None" when the challenge runs every day. */
+export function restDaysLabel(restDays: number[]): string {
+  if (!restDays.length) return 'None — every day';
+  return WEEKDAY_LABELS.filter((d) => restDays.includes(d.value))
+    .map((d) => d.short)
+    .join(', ');
+}

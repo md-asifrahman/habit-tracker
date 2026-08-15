@@ -1,4 +1,10 @@
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { useRef, useState } from 'react';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+  type NavigationContainerRef,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme, fonts } from '../theme/useTheme';
@@ -7,17 +13,22 @@ import ChallengesScreen from '../screens/ChallengesScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ChallengeDetailScreen from '../screens/ChallengeDetailScreen';
 import AddChallengeScreen from '../screens/AddChallengeScreen';
+import LogDayScreen from '../screens/LogDayScreen';
+import { useNotificationTaps } from '../notifications/useNotificationTaps';
 import { TodayIcon, ChallengesIcon, SettingsIcon } from '../components/icons';
 
 export type RootStackParamList = {
-  Tabs: undefined;
+  Tabs: { screen?: keyof TabParamList; params?: TabParamList[keyof TabParamList] } | undefined;
   ChallengeDetail: { challengeId: string };
   /** Doubles as the edit flow when a challengeId is passed. */
   AddChallenge: { challengeId?: string };
+  /** Filling in a day that was missed, or correcting one already logged. */
+  LogDay: { challengeId: string; date: string };
 };
 
 export type TabParamList = {
-  Today: undefined;
+  /** A challengeId arrives when a reminder was tapped — that card opens. */
+  Today: { challengeId?: string } | undefined;
   Challenges: undefined;
   Settings: undefined;
 };
@@ -58,6 +69,10 @@ function Tabs() {
 
 export default function RootNavigator() {
   const { colors, scheme } = useTheme();
+  const navigationRef = useRef<NavigationContainerRef<RootStackParamList> | null>(null);
+  // Held in state so the tap handler re-runs once the container is actually mounted.
+  const [navigationReady, setNavigationReady] = useState(false);
+  useNotificationTaps(navigationReady ? navigationRef.current : null);
   const navTheme = {
     ...(scheme === 'dark' ? DarkTheme : DefaultTheme),
     colors: {
@@ -71,11 +86,16 @@ export default function RootNavigator() {
   };
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={navTheme}
+      onReady={() => setNavigationReady(true)}
+    >
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Tabs" component={Tabs} />
         <Stack.Screen name="ChallengeDetail" component={ChallengeDetailScreen} options={{ presentation: 'card' }} />
         <Stack.Screen name="AddChallenge" component={AddChallengeScreen} options={{ presentation: 'modal' }} />
+        <Stack.Screen name="LogDay" component={LogDayScreen} options={{ presentation: 'modal' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

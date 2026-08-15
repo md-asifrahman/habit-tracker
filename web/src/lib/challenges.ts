@@ -33,6 +33,8 @@ export interface Challenge {
   repeatEnabled: boolean;
   repeatEveryMin: number;
   tasks: ChallengeTask[];
+  /** ISO day-of-week numbers (1=Mon .. 7=Sun) the challenge takes off. */
+  restDays: number[];
 }
 
 export interface ChallengeInput {
@@ -44,6 +46,7 @@ export interface ChallengeInput {
   repeatEnabled: boolean;
   repeatEveryMin: number;
   tasks: string[];
+  restDays: number[];
 }
 
 /** The whole challenge, sent to PUT /challenges/{id} to create-or-replace it. */
@@ -57,6 +60,7 @@ export interface ChallengeUpsertInput {
   repeatEnabled: boolean;
   repeatEveryMin: number;
   tasks: { id?: string; title: string }[];
+  restDays: number[];
 }
 
 export interface DayLog {
@@ -87,6 +91,7 @@ export interface ChallengeReport {
     completionPercent: number;
     logged: boolean;
     future: boolean;
+    restDay: boolean;
   }[];
   taskBreakdown: {
     taskId: string;
@@ -122,6 +127,30 @@ export function formatTime(value: string): string {
   const suffix = hour >= 12 ? 'PM' : 'AM';
   const display = hour % 12 === 0 ? 12 : hour % 12;
   return `${display}:${String(minute).padStart(2, '0')} ${suffix}`;
+}
+
+export const WEEKDAY_LABELS: { value: number; short: string }[] = [
+  { value: 1, short: 'Mon' },
+  { value: 2, short: 'Tue' },
+  { value: 3, short: 'Wed' },
+  { value: 4, short: 'Thu' },
+  { value: 5, short: 'Fri' },
+  { value: 6, short: 'Sat' },
+  { value: 7, short: 'Sun' },
+];
+
+/** ISO day of week for a yyyy-mm-dd date: 1 = Monday .. 7 = Sunday. */
+export function isoWeekday(iso: string): number {
+  const day = new Date(`${iso}T00:00:00`).getDay(); // 0 = Sunday
+  return day === 0 ? 7 : day;
+}
+
+/** "Sat, Sun" — or a note that it runs every day. */
+export function restDaysLabel(restDays: number[]): string {
+  if (!restDays?.length) return 'None — every day';
+  return WEEKDAY_LABELS.filter((d) => restDays.includes(d.value))
+    .map((d) => d.short)
+    .join(', ');
 }
 
 export function soundLabel(key: SoundKey): string {

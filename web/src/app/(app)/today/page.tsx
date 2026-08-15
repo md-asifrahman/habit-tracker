@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import { challengesApi, formatTime, todayIso, type Challenge, type DayLog } from '@/lib/challenges';
+import { challengesApi, formatTime, isoWeekday, todayIso, type Challenge, type DayLog } from '@/lib/challenges';
 import { ProgressBar, RingProgress } from '@/components/challenge-visuals';
 import { CheckIcon, PlusIcon } from '@/components/icons';
 
@@ -14,7 +14,14 @@ export default function TodayPage() {
 
   const { data: challenges, isLoading } = useQuery({ queryKey: ['challenges'], queryFn: challengesApi.list });
   const active = useMemo(
-    () => (challenges ?? []).filter((challenge) => challenge.status === 'ACTIVE' && challenge.endDate >= today),
+    () =>
+      (challenges ?? []).filter(
+        (challenge) =>
+          challenge.status === 'ACTIVE' &&
+          challenge.endDate >= today &&
+          // A rest day has nothing to tick, so it doesn't belong on Today at all.
+          !(challenge.restDays ?? []).includes(isoWeekday(today)),
+      ),
     [challenges, today],
   );
 
@@ -74,13 +81,14 @@ function TodayCard({ challenge, savedLog }: { challenge: Challenge; savedLog: Da
   const queryClient = useQueryClient();
   const today = todayIso();
   const [checked, setChecked] = useState<string[]>(savedLog?.completedTaskIds ?? []);
+  const [note, setNote] = useState(savedLog?.note ?? '');
   const [isSaving, setIsSaving] = useState(false);
 
   const total = challenge.tasks.length;
   const done = checked.length;
   const pct = total === 0 ? 0 : Math.round((done * 100) / total);
   const allChecked = total > 0 && done === total;
-  const dirty = !savedLog || !sameSet(checked, savedLog.completedTaskIds);
+  const dirty = !savedLog || !sameSet(checked, savedLog.completedTaskIds) || note !== (savedLog.note ?? '');
 
   function toggle(taskId: string) {
     setChecked((current) =>
@@ -91,7 +99,7 @@ function TodayCard({ challenge, savedLog }: { challenge: Challenge; savedLog: Da
   async function save() {
     setIsSaving(true);
     try {
-      await challengesApi.logDay(challenge.id, today, checked);
+      await challengesApi.logDay(challenge.id, today, checked, note.trim() || undefined);
       queryClient.invalidateQueries({ queryKey: ['logs', challenge.id] });
       queryClient.invalidateQueries({ queryKey: ['report', challenge.id] });
     } finally {
@@ -142,6 +150,14 @@ function TodayCard({ challenge, savedLog }: { challenge: Challenge; savedLog: Da
           {done}/{total}
         </span>
       </button>
+
+      <textarea
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        placeholder="Add a note (optional)"
+        rows={2}
+        className="mt-3 w-full resize-y rounded-xl border border-border bg-bg px-3 py-2.5 text-[13.5px] outline-none focus:border-accent"
+      />
 
       <div className="mt-3">
         <ProgressBar value={pct} />

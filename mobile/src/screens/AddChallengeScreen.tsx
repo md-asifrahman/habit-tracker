@@ -14,7 +14,7 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { fonts, useTheme } from '../theme/useTheme';
 import { useChallengesStore, type ChallengeDraft } from '../store/challengesStore';
-import { formatTime } from '../store/id';
+import { formatTime, restDaysLabel, WEEKDAY_LABELS } from '../store/id';
 import { normalizeSound, SOUND_OPTIONS, soundLabel } from '../notifications/reminders';
 import { BackIcon, CheckIcon, PlusIcon } from '../components/icons';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -50,10 +50,11 @@ export default function AddChallengeScreen() {
   const [reminderSound, setReminderSound] = useState<SoundKey>(normalizeSound(existing?.reminderSound));
   const [repeatEnabled, setRepeatEnabled] = useState(existing?.repeatEnabled ?? true);
   const [repeatEveryMin, setRepeatEveryMin] = useState(existing?.repeatEveryMin ?? 30);
+  const [restDays, setRestDays] = useState<number[]>(existing?.restDays ?? []);
   const [tasks, setTasks] = useState<string[]>(existing?.tasks.map((task) => task.title) ?? []);
   const [taskDraft, setTaskDraft] = useState('');
 
-  const setupValid = title.trim().length > 0 && durationDays >= 1;
+  const setupValid = title.trim().length > 0 && durationDays >= 1 && restDays.length < 7;
   const tasksValid = tasks.length > 0;
 
   function shiftTime(minutes: number) {
@@ -88,6 +89,7 @@ export default function AddChallengeScreen() {
       repeatEnabled,
       repeatEveryMin,
       taskTitles: tasks,
+      restDays,
     };
     if (existing) {
       updateChallenge(existing.id, draft);
@@ -171,6 +173,49 @@ export default function AddChallengeScreen() {
                   { marginTop: 10, backgroundColor: colors.surface, borderColor: colors.border, color: colors.text, fontFamily: fonts.body },
                 ]}
               />
+            </Field>
+
+            <Field label="Rest days">
+              <Text style={[styles.fieldHint, { color: colors.textMuted, fontFamily: fonts.body, marginTop: 0, marginBottom: 10 }]}>
+                Days you plan to take off. No reminder, and they never count against you.
+              </Text>
+              <View style={styles.chipRow}>
+                {WEEKDAY_LABELS.map((day) => {
+                  const off = restDays.includes(day.value);
+                  return (
+                    <Pressable
+                      key={day.value}
+                      onPress={() =>
+                        setRestDays((current) =>
+                          off ? current.filter((v) => v !== day.value) : [...current, day.value],
+                        )
+                      }
+                      style={[
+                        styles.dayChip,
+                        {
+                          backgroundColor: off ? colors.accent : colors.surface,
+                          borderColor: off ? colors.accent : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color: off ? colors.accentInk : colors.text,
+                          fontFamily: fonts.bodyBold,
+                          fontSize: 12.5,
+                        }}
+                      >
+                        {day.short}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {restDays.length >= 7 && (
+                <Text style={[styles.fieldHint, { color: colors.danger, fontFamily: fonts.body }]}>
+                  Every day can't be a rest day — leave at least one active.
+                </Text>
+              )}
             </Field>
 
             <Field label="Daily reminder">
@@ -282,6 +327,7 @@ export default function AddChallengeScreen() {
             <SummaryCard title="Challenge" onEdit={() => setStep('setup')}>
               <SummaryRow label="Name" value={title.trim()} />
               <SummaryRow label="Length" value={`${durationDays} days`} />
+              <SummaryRow label="Rest days" value={restDaysLabel(restDays)} />
               <SummaryRow label="Reminder" value={formatTime(reminderTime)} />
               <SummaryRow label="Sound" value={soundLabel(reminderSound)} />
               <SummaryRow
@@ -433,6 +479,7 @@ const styles = StyleSheet.create({
   input: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8 },
+  dayChip: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9, minWidth: 48, alignItems: 'center' },
   timeBox: {
     flexDirection: 'row',
     alignItems: 'center',

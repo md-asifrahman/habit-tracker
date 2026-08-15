@@ -63,6 +63,15 @@ public class Challenge extends BaseEntity {
     @Column(nullable = false)
     private int repeatEveryMin = 30;
 
+    /**
+     * Days the challenge deliberately takes off, as comma-separated ISO day-of-week numbers
+     * (1=Mon .. 7=Sun), e.g. "6,7" for weekends. Rest days get no reminder and are left out of
+     * the report entirely — they are not misses, so they must not drag the average down or break
+     * a streak.
+     */
+    @Column(nullable = false)
+    private String restDays = "";
+
     @OneToMany(mappedBy = "challenge", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
     private List<ChallengeTask> tasks = new ArrayList<>();

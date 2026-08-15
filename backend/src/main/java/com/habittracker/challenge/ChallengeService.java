@@ -55,6 +55,7 @@ public class ChallengeService {
         challenge.setReminderSound(request.reminderSound());
         challenge.setRepeatEnabled(request.repeatEnabled());
         challenge.setRepeatEveryMin(request.repeatEveryMin());
+        challenge.setRestDays(RestDays.serialize(request.restDays()));
 
         int order = 0;
         for (String title : request.tasks()) {
@@ -92,6 +93,7 @@ public class ChallengeService {
         challenge.setReminderSound(request.reminderSound());
         challenge.setRepeatEnabled(request.repeatEnabled());
         challenge.setRepeatEveryMin(request.repeatEveryMin());
+        challenge.setRestDays(RestDays.serialize(request.restDays()));
         applyTasks(challenge, request.tasks());
 
         return ChallengeResponse.from(challengeRepository.save(challenge), requestZone.today());
