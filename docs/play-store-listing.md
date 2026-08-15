@@ -37,7 +37,14 @@ The four genuine differentiators, which the copy leans on:
 
 ## Title — 30 characters
 
-**Recommended:** `Daily Challenge Tracker` (23)
+**Play Console listing title:** `Daily Challenge Tracker` (23)
+
+**Launcher label on the phone:** `Challenges` (set in `mobile/app.json`)
+
+These are deliberately different. The store title is entered in Play Console and carries the
+keywords; the launcher label lives in the APK and only has to survive a home screen, where
+Android truncates at roughly 10-12 characters. "Daily Challenge Tracker" under an icon becomes
+"Daily Challen…".
 
 Alternatives:
 
@@ -159,6 +166,10 @@ Metadata gets you into the results. Staying there is driven by:
 Which means the highest-leverage work is not copy. It is: ask for a rating after somebody
 finishes their first challenge, keep the app crash-free, and get the first 50–100 genuine
 installs from somewhere real.
+
+The rating prompt is now built in (`mobile/src/store/reviewPrompt.ts`). It fires once per
+install, only after a challenge has finished, and only if the user logged at least 5 days at 60%
+or better — asking someone who abandoned a challenge is how you collect one-star reviews.
 
 ## Localisation
 

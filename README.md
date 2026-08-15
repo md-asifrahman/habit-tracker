@@ -1,4 +1,4 @@
-# Habit Tracker
+# Daily Challenge Tracker
 
 Day-count challenges: pick a length, list the things you want to do every day, and tick
 them off each night. Days score as a percentage, so partial days still count — and the

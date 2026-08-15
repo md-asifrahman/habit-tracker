@@ -20,7 +20,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="flex w-56 flex-none flex-col gap-7 border-r border-border bg-surface-2 p-5">
         <Link href="/today" className="flex items-center gap-2 px-1.5">
           <span className="h-5.5 w-5.5 rounded-md bg-accent" />
-          <span className="font-display text-[15px]">Habit Tracker</span>
+          <span className="font-display text-[15px]">Challenges</span>
         </Link>
         <nav className="flex flex-col gap-1">
           {navItems.map(({ href, label, icon: Icon }) => {

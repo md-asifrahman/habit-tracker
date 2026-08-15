@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,6 +9,7 @@ import { soundLabel } from '../notifications/reminders';
 import { DayStrip, ProgressBar, RingProgress, StatTile, TrendChart } from '../components/ChallengeVisuals';
 import { BackIcon } from '../components/icons';
 import { syncInBackground } from '../sync/syncService';
+import { maybeAskForReview } from '../store/reviewPrompt';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 export default function ChallengeDetailScreen() {
@@ -22,6 +24,15 @@ export default function ChallengeDetailScreen() {
   const duplicateChallenge = useChallengesStore((state) => state.duplicateChallenge);
 
   const summary = challenge ? report(challengeId) : null;
+
+  // Finishing a challenge you kept up with is the one moment worth asking for a rating.
+  // The local store never flips status to COMPLETED, so a run past its end date counts too.
+  const finished = !!challenge && !(challenge.status === 'ACTIVE' && challenge.endDate >= todayIso());
+  const daysLogged = summary?.daysLogged ?? 0;
+  const averagePercent = summary?.averagePercent ?? 0;
+  useEffect(() => {
+    if (finished) void maybeAskForReview(daysLogged, averagePercent);
+  }, [finished, daysLogged, averagePercent]);
 
   if (!challenge || !summary) {
     return (

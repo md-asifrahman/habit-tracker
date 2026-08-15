@@ -16,8 +16,9 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Habit Tracker",
-  description: "Build streaks, run challenges, map out your goals, and get reminded.",
+  title: "Daily Challenge Tracker",
+  description:
+    "Run 21, 30 or 100-day challenges. Tick off your daily list, take rest days, and see how much you actually kept.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
