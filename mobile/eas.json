@@ -13,7 +13,10 @@
       "env": { "EXPO_PUBLIC_API_BASE_URL": "https://api.your-domain.com/api" }
     },
     "production": {
-      "android": { "buildType": "app-bundle" },
+      "android": { "buildType": "app-bundle" }
+    },
+    "production-synced": {
+      "extends": "production",
       "env": { "EXPO_PUBLIC_API_BASE_URL": "https://api.your-domain.com/api" }
     }
   },
