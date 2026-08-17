@@ -8,10 +8,10 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ctrends.habittracker"
+      "bundleIdentifier": "com.ctrends.dailychallenge"
     },
     "android": {
-      "package": "com.ctrends.habittracker",
+      "package": "com.ctrends.dailychallenge",
       "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
